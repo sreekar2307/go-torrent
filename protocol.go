@@ -21,16 +21,16 @@ type HandShake struct {
 const KeepAlive byte = 10
 
 const (
-	Choke = byte(iota)
-	UnChoke
-	Interested
-	NotInterested
-	Have
-	BitField
-	Request
-	Piece
-	Cancel
-	Port
+	ChokeMessageType = byte(iota)
+	UnChokeMessageType
+	InterestedMessageType
+	NotInterestedMessageType
+	HaveMessageType
+	BitFieldMessageType
+	RequestMessageType
+	PieceMessageType
+	CancelMessageType
+	PortMessageType
 )
 
 type Message struct {
@@ -40,7 +40,7 @@ type Message struct {
 }
 
 func NewMessage(id byte, payload []byte) (m Message, err error) {
-	if id > KeepAlive || id < Choke {
+	if id > KeepAlive || id < ChokeMessageType {
 		err = errors.New("invalid message id")
 		return
 	}
@@ -76,7 +76,7 @@ func (p protocol) HandShake(infoHash [20]byte, peerID [20]byte) []byte {
 	return res
 }
 
-func NewHandShake(val []byte) (handShake HandShake, err error) {
+func (p protocol) ParseHandShake(val []byte) (handShake HandShake, err error) {
 	err = binary.Read(bytes.NewReader(val), binary.BigEndian, &handShake)
 	return
 }
@@ -95,7 +95,7 @@ func NewHandShake(val []byte) (handShake HandShake, err error) {
 //	return res
 //}
 //
-//func NewChoke(val []byte) (choke Choke, err error) {
+//func NewChoke(val []byte) (choke ChokeMessageType, err error) {
 //	err = binary.Read(bytes.NewReader(val), binary.BigEndian, &choke)
 //	return
 //}
@@ -108,8 +108,8 @@ func NewHandShake(val []byte) (handShake HandShake, err error) {
 //}
 //
 
-func (p protocol) interested() ([]byte, error) {
-	m, err := NewMessage(Interested, nil)
+func (p protocol) Interested() ([]byte, error) {
+	m, err := NewMessage(InterestedMessageType, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -146,12 +146,12 @@ func (p protocol) interested() ([]byte, error) {
 //}
 //
 
-func (p protocol) newRequest(index, begin, length uint32) ([]byte, error) {
+func (p protocol) NewRequest(index, begin, length uint32) ([]byte, error) {
 	payload := make([]byte, 12)
 	binary.BigEndian.PutUint32(payload[0:4], index)
 	binary.BigEndian.PutUint32(payload[4:8], begin)
 	binary.BigEndian.PutUint32(payload[8:12], length)
-	m, err := NewMessage(Request, payload)
+	m, err := NewMessage(RequestMessageType, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (p protocol) newRequest(index, begin, length uint32) ([]byte, error) {
 //	return res
 //}
 
-var defaultProtocol = protocol{}
+var Protocol = protocol{}
 
 func (p protocol) ParseMessage(reader io.Reader) (message Message, err error) {
 	messageLenAsBytes := make([]byte, 4)

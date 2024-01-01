@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"pieces"
 )
 
@@ -12,20 +13,23 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	tracker := pieces.MustCreateTracker(torrent)
-	peers, err := tracker.Peers(context.Background())
-	if err != nil {
-		fmt.Println(err)
-	}
-	for _, peer := range peers {
-		fmt.Printf("peer %s:%s\n", peer.IP, peer.Port)
-	}
+	tracker, err := pieces.NewTracker(&torrent)
 	if err != nil {
 		return
 	}
-	for _, peer := range peers {
-		err = pieces.PeerHandler(peer, tracker)
-		fmt.Println(err)
+
+	pieceManager := pieces.OrderedPieceManager{
+		CurrIndex: 0,
+		Torrent:   &torrent,
+		Peer:      tracker.Peers[0],
 	}
+
+	client, err := pieces.NewClient(context.Background(), pieceManager, tracker)
+
+	download, err := client.Download(10)
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile("lubuntu.iso", download, 0644)
 
 }

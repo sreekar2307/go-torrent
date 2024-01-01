@@ -12,12 +12,13 @@ import (
 )
 
 type Tracker struct {
-	Torrent  Torrent
+	Torrent  *Torrent
 	PeerID   [20]byte
 	InfoHash [20]byte
+	Peers    []*Peer
 }
 
-func MustCreateTracker(torrent Torrent) Tracker {
+func NewTracker(torrent *Torrent) (*Tracker, error) {
 	peerID, err := generatePeerID()
 	if err != nil {
 		panic("failed to generate peerID")
@@ -26,14 +27,22 @@ func MustCreateTracker(torrent Torrent) Tracker {
 		panic("failed to generate info hash")
 	}
 
-	return Tracker{
+	tracker := Tracker{
 		Torrent:  torrent,
 		PeerID:   peerID,
 		InfoHash: torrent.Info.Hash,
 	}
+
+	tracker.Peers, err = tracker.getPeers(context.Background())
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &tracker, nil
 }
 
-func (t Tracker) Peers(ctx context.Context) ([]*Peer, error) {
+func (t Tracker) getPeers(ctx context.Context) ([]*Peer, error) {
 	client := http.DefaultClient
 	queryParams := make(url.Values)
 
@@ -75,12 +84,12 @@ func (t Tracker) Peers(ctx context.Context) ([]*Peer, error) {
 
 	peersInfoAsString, ok := trackerResponse["peers"].(string)
 	if !ok {
-		panic("cannot decode peers info only binary model peer decoding is supported")
+		panic("cannot decode peers info only binary model Peer decoding is supported")
 	}
 	peersInfo := []byte(peersInfoAsString)
 
 	if len(peersInfo)%6 != 0 {
-		return nil, errors.New("invalid peer info")
+		return nil, errors.New("invalid Peer info")
 	}
 
 	var peers []*Peer
